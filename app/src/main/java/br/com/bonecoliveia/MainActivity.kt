@@ -16,11 +16,20 @@ import java.util.Locale
 class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    private var pendingSpeech: String? = null
     private lateinit var commentInput: EditText
     private lateinit var answerText: TextView
+    private lateinit var voiceStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        voiceStatus = TextView(this).apply {
+            text = "Preparando a voz..."
+            textSize = 14f
+            setTextColor(Color.rgb(150, 220, 170))
+            gravity = Gravity.CENTER
+            setPadding(0, 12, 0, 18)
+        }
         tts = TextToSpeech(this, this)
 
         val root = LinearLayout(this).apply {
@@ -43,9 +52,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             textSize = 15f
             setTextColor(Color.LTGRAY)
             gravity = Gravity.CENTER
-            setPadding(0, 10, 0, 22)
+            setPadding(0, 10, 0, 10)
         }
         root.addView(subtitle, matchWidthWrap())
+        root.addView(voiceStatus, matchWidthWrap())
 
         commentInput = EditText(this).apply {
             hint = "Digite um comentário de teste"
@@ -66,18 +76,34 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         root.addView(answerText, matchWidthWrap())
 
         val answerButton = Button(this).apply {
-            text = "Gerar resposta de teste"
+            text = "GERAR RESPOSTA E FALAR"
             setOnClickListener {
                 val comment = commentInput.text.toString().trim()
                 val answer = makeDemoAnswer(comment)
                 answerText.text = answer
+                if (comment.isBlank()) {
+                    commentInput.error = "Digite um comentário primeiro"
+                    return@setOnClickListener
+                }
                 speak(answer)
             }
         }
         root.addView(answerButton, matchWidthWrap())
 
+        val retryButton = Button(this).apply {
+            text = "TENTAR INICIAR A VOZ NOVAMENTE"
+            setOnClickListener {
+                voiceStatus.text = "Reiniciando a voz..."
+                ttsReady = false
+                tts?.stop()
+                tts?.shutdown()
+                tts = TextToSpeech(this@MainActivity, this@MainActivity)
+            }
+        }
+        root.addView(retryButton, matchWidthWrap())
+
         val note = TextView(this).apply {
-            text = "Importante: esta versão é um protótipo. Ainda não recebe comentários do TikTok nem conecta uma IA online."
+            text = "Esta versão testa respostas faladas no próprio celular. Ainda não recebe comentários reais do TikTok nem conecta uma IA online."
             textSize = 14f
             setTextColor(Color.rgb(255, 210, 120))
             setPadding(0, 22, 0, 0)
@@ -103,18 +129,43 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun speak(text: String) {
-        if (ttsReady) {
-            tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "boneco-live-answer")
+        if (ttsReady && tts != null) {
+            voiceStatus.text = "Falando..."
+            val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "boneco-live-answer")
+            if (result == TextToSpeech.ERROR) {
+                voiceStatus.text = "Não foi possível iniciar a fala. Tente reiniciar a voz."
+            }
         } else {
-            answerText.text = "$text\n\nA voz ainda está iniciando. Tente novamente em alguns segundos."
+            pendingSpeech = text
+            voiceStatus.text = "A voz ainda está preparando. Vou tentar falar assim que ficar pronta."
         }
     }
 
     override fun onInit(status: Int) {
-        if (status == TextToSpeech.SUCCESS) {
-            val result = tts?.setLanguage(Locale("pt", "BR"))
-            ttsReady = result != TextToSpeech.LANG_MISSING_DATA &&
-                result != TextToSpeech.LANG_NOT_SUPPORTED
+        if (status != TextToSpeech.SUCCESS) {
+            ttsReady = false
+            voiceStatus.text = "O Android não iniciou a voz. Confira se há um mecanismo de texto para voz instalado."
+            return
+        }
+
+        val engine = tts ?: return
+        var languageResult = engine.setLanguage(Locale("pt", "BR"))
+        if (languageResult == TextToSpeech.LANG_MISSING_DATA ||
+            languageResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+            languageResult = engine.setLanguage(Locale("pt"))
+        }
+
+        ttsReady = languageResult != TextToSpeech.LANG_MISSING_DATA &&
+            languageResult != TextToSpeech.LANG_NOT_SUPPORTED
+
+        if (ttsReady) {
+            voiceStatus.text = "Voz pronta em português."
+            pendingSpeech?.let { queued ->
+                pendingSpeech = null
+                speak(queued)
+            }
+        } else {
+            voiceStatus.text = "Voz em português indisponível. Instale os dados de voz nas configurações do Android."
         }
     }
 
