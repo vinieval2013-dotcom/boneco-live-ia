@@ -61,7 +61,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         root.addView(label("BONECO LIVE IA", 26f, Color.WHITE, true))
-        root.addView(label("REAÇÕES AO VIVO • VERSÃO 0.5.0", 12f, muted, true).apply {
+        root.addView(label("REAÇÕES AO VIVO • VERSÃO 0.6.0", 12f, muted, true).apply {
             setPadding(0, 4, 0, 18)
         })
 
