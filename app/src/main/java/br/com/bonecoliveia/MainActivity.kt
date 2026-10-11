@@ -10,6 +10,7 @@ import android.graphics.Typeface
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -34,6 +35,15 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private lateinit var characterMood: TextView
     private lateinit var connectButton: Button
     private lateinit var disconnectButton: Button
+    private lateinit var statsText: TextView
+    private lateinit var voiceToggle: CheckBox
+    private lateinit var modeToggle: CheckBox
+    private var voiceEnabled = true
+    private var gamerMode = false
+    private var commentsRead = 0
+    private var giftsReceived = 0
+    private var lastSpokenAt = 0L
+    private val seenViewers = linkedSetOf<String>()
 
     private val bg = Color.rgb(10, 14, 28)
     private val panel = Color.rgb(23, 30, 51)
@@ -115,6 +125,37 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
         voicePanel.addView(retryButton, matchWidthWrap())
         root.addView(voicePanel, withBottom(matchWidthWrap(), 16))
+
+        val settingsPanel = panelBox()
+        settingsPanel.addView(label("04  •  PERSONALIZAR A LIVE", 16f, Color.WHITE, true))
+        voiceToggle = CheckBox(this).apply {
+            text = "Falar as respostas em voz alta"
+            isChecked = true
+            setTextColor(Color.WHITE)
+            buttonTintList = android.content.res.ColorStateList.valueOf(accent)
+            setOnCheckedChangeListener { _, checked ->
+                voiceEnabled = checked
+                if (!checked) tts?.stop()
+                voiceStatus.text = if (checked) "Voz ativada." else "Voz desativada; respostas ficam na tela."
+            }
+        }
+        settingsPanel.addView(voiceToggle, matchWidthWrap())
+        modeToggle = CheckBox(this).apply {
+            text = "Modo gamer (Subway Surfers)"
+            isChecked = false
+            setTextColor(Color.WHITE)
+            buttonTintList = android.content.res.ColorStateList.valueOf(accent)
+            setOnCheckedChangeListener { _, checked ->
+                gamerMode = checked
+                characterMood.text = if (checked) "Modo gamer ativado! Bora buscar recorde!" else "Modo engraçado ativado! Bora brincar!"
+            }
+        }
+        settingsPanel.addView(modeToggle, matchWidthWrap())
+        statsText = label("Comentários lidos: 0  •  Presentes: 0  •  Pessoas vistas: 0", 13f, muted, false).apply {
+            setPadding(0, 10, 0, 0)
+        }
+        settingsPanel.addView(statsText, matchWidthWrap())
+        root.addView(settingsPanel, withBottom(matchWidthWrap(), 16))
 
         root.addView(label("AVISO DE CONEXÃO", 12f, Color.rgb(250, 204, 120), true))
         root.addView(label("A conexão usa uma biblioteca comunitária não oficial. O TikTok pode mudar o sistema e interromper a conexão. O app só reage quando receber eventos; ele não envia mensagens no chat nem controla presentes.", 12f, muted, false).apply {
@@ -221,14 +262,24 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun reactToComment(nickname: String, comment: String) {
-        val result = makeResponse(comment)
+        commentsRead++
+        seenViewers.add(nickname.lowercase(Locale.ROOT))
+        statsText.text = "Comentários lidos: $commentsRead  •  Presentes: $giftsReceived  •  Pessoas vistas: ${seenViewers.size}"
+        val result = makeResponse(nickname, comment)
         characterFace.text = result.first
         characterMood.text = result.second
         answerText.text = "$nickname comentou: $comment\n\nBoneco: ${result.third}"
-        speak(result.third)
+        val now = System.currentTimeMillis()
+        if (now - lastSpokenAt >= 1400L) {
+            speak(result.third)
+            lastSpokenAt = now
+        }
     }
 
     private fun reactToGift(nickname: String, gift: String) {
+        giftsReceived++
+        seenViewers.add(nickname.lowercase(Locale.ROOT))
+        statsText.text = "Comentários lidos: $commentsRead  •  Presentes: $giftsReceived  •  Pessoas vistas: ${seenViewers.size}"
         characterFace.text = "🧽🥹"
         characterMood.text = "UM PRESENTE?! TÔ TODO EMOCIONADO!"
         val response = "Aí sim, $nickname! Valeu demais pelo presente $gift! Você é brabo!"
@@ -236,13 +287,16 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         speak(response)
     }
 
-    private fun makeResponse(comment: String): Triple<String, String, String> {
+    private fun makeResponse(nickname: String, comment: String): Triple<String, String, String> {
         val text = comment.lowercase(Locale.ROOT)
+        if (gamerMode && listOf("subway", "jogo", "recorde", "pontos", "game", "perdeu", "errou").any { text.contains(it) }) {
+            return Triple("🧽🤩", "MODO GAMER ATIVADO!", "Bora buscar esse recorde, $nickname! Se eu bater no trem, foi culpa do lag!")
+        }
         return when {
             listOf("kkkk", "haha", "😂", "engraçado", "piada").any { text.contains(it) } ->
                 Triple("🧽😂", "TÔ RINDO ATÉ AS ESPONJAS!", "KKKKKK! Para que eu vou cair da cadeira! Manda outra!")
             listOf("oi", "olá", "ola", "salve", "cheguei", "bom dia", "boa noite").any { text.contains(it) } ->
-                Triple("🧽😎", "CHEGOU MAIS UM PARÇA!", "Opa, salve, $nicknamePlaceholder! Bem-vindo à bagunça! Deixa o like!")
+                Triple("🧽😎", "CHEGOU MAIS UM PARÇA!", "Opa, salve, $nickname! Bem-vindo à bagunça! Deixa o like!")
             listOf("amor", "te amo", "❤️", "💖", "coração").any { text.contains(it) } ->
                 Triple("🧽🥰", "AI, MEU CORAÇÃO DE ESPONJA!", "Awnnn! Receba um abraço molhadinho do fundo do mar! ❤️")
             listOf("presente", "rosa", "🎁", "🌹").any { text.contains(it) } ->
@@ -255,8 +309,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 Triple("🧽😏", "O BONECO TÁ DE OLHO NO CHAT!", "Boa, meu consagrado! Manda outra que eu tô inspirado!")
         }
     }
-
-    private val nicknamePlaceholder = "parça"
 
     private fun disconnectFromLive() {
         try {
@@ -317,8 +369,11 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     )
 
     private fun speak(text: String) {
+        if (!voiceEnabled) return
         if (ttsReady && tts != null) {
-            val result = tts?.speak(text, TextToSpeech.QUEUE_ADD, null, "boneco-live-answer")
+            tts?.setSpeechRate(1.05f)
+            val options = android.os.Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 0.85f) }
+            val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, options, "boneco-live-answer")
             if (result == TextToSpeech.ERROR) voiceStatus.text = "Falha ao falar. Confira a voz do Android."
         } else {
             pendingSpeech = text
