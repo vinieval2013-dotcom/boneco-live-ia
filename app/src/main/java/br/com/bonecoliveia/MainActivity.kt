@@ -62,7 +62,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         })
 
         val hero = panelBox()
-        characterFace = label("🧽😎", 62f, Color.WHITE, true).apply { gravity = Gravity.CENTER }
+        hero.addView(SpongeBobView(), LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(190)
+        ))
+        characterFace = label("😎", 30f, Color.WHITE, true).apply { gravity = Gravity.CENTER }
         hero.addView(characterFace, matchWidthWrap())
         characterMood = label("E aí, meu chapa! Bora pra LIVE!", 17f, Color.WHITE, true).apply {
             gravity = Gravity.CENTER
@@ -172,85 +175,95 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             return
         }
         connectButton.isEnabled = false
-        connectionStatus.text = "Conectando a @$username... aguarde."
-        characterFace.text = "🧽🤔"
-        characterMood.text = "Deixa comigo! Tô entrando no chat..."
-        try {
-            TikTokLive.newClient(username)
-                .configure { settings ->
-                    settings.setClientLanguage("pt")
-                    settings.setRetryOnConnectionFailure(true)
-                    settings.setPrintToConsole(false)
-                }
-                .onConnected { _, _ ->
-                    runOnUiThread {
-                        connectionStatus.text = "CONECTADO ao chat de @$username. Esperando comentários..."
-                        connectionStatus.setTextColor(Color.rgb(134, 239, 172))
-                        characterFace.text = "🧽😎"
-                        characterMood.text = "Aêêê! O chat tá aberto, manda ver!"
-                        connectButton.isEnabled = false
-                        disconnectButton.isEnabled = true
+        disconnectButton.isEnabled = false
+        connectionStatus.text = "Tentando conectar a @${username} em segundo plano..."
+        characterFace.text = "🤔"
+        characterMood.text = "Um instante! Estou tentando abrir o chat..."
+
+        // A biblioteca de terceiros pode bloquear ou lançar erros durante a inicialização.
+        // Mantemos essa etapa fora da thread da interface e mostramos falhas em vez de fechar a tela.
+        Thread({
+            try {
+                TikTokLive.newClient(username)
+                    .configure { settings ->
+                        settings.setClientLanguage("pt")
+                        settings.setRetryOnConnectionFailure(true)
+                        settings.setPrintToConsole(false)
                     }
-                }
-                .onComment { _, event ->
-                    val nickname = event.user.name ?: "alguém"
-                    val comment = event.text ?: ""
-                    if (comment.isNotBlank()) {
-                        runOnUiThread { reactToComment(nickname, comment) }
+                    .onConnected { _, _ ->
+                        runOnUiThread {
+                            connectionStatus.text = "CONECTADO ao chat de @${username}. Esperando comentários..."
+                            connectionStatus.setTextColor(Color.rgb(134, 239, 172))
+                            characterFace.text = "😎"
+                            characterMood.text = "Aêêê! O chat tá aberto, manda ver!"
+                            connectButton.isEnabled = false
+                            disconnectButton.isEnabled = true
+                        }
                     }
-                }
-                .onGift { _, event ->
-                    val nickname = event.user.name ?: "amigo"
-                    val giftName = event.gift.name ?: "presente"
-                    runOnUiThread { reactToGift(nickname, giftName) }
-                }
-                .onDisconnected { _, event ->
-                    runOnUiThread {
-                        connectionStatus.text = "A conexão foi encerrada. Tente conectar novamente."
-                        connectionStatus.setTextColor(Color.rgb(250, 204, 120))
-                        characterFace.text = "🧽😕"
-                        characterMood.text = "Opa, caí do chat! Tenta de novo."
-                        connectButton.isEnabled = true
-                        disconnectButton.isEnabled = false
-                        connecting.set(false)
-                        liveClient = null
+                    .onComment { _, event ->
+                        val nickname = event.user.name ?: "alguém"
+                        val comment = event.text ?: ""
+                        if (comment.isNotBlank()) runOnUiThread { reactToComment(nickname, comment) }
                     }
-                }
-                .onError { _, event ->
-                    val message = event.exception?.message ?: "Não foi possível conectar."
-                    runOnUiThread {
-                        connectionStatus.text = "Falha na conexão: " + message.take(120)
-                        connectionStatus.setTextColor(Color.rgb(252, 165, 165))
-                        characterFace.text = "🧽😵"
-                        characterMood.text = "Eita! Deu ruim na conexão. Tenta de novo."
-                        connectButton.isEnabled = true
-                        disconnectButton.isEnabled = false
-                        connecting.set(false)
+                    .onGift { _, event ->
+                        val nickname = event.user.name ?: "amigo"
+                        val giftName = event.gift.name ?: "presente"
+                        runOnUiThread { reactToGift(nickname, giftName) }
                     }
-                }
-                .buildAndConnectAsync()
-                .thenAccept { client ->
-                    liveClient = client
-                    runOnUiThread {
-                        connectionStatus.text = "Conexão iniciada. Verificando o chat de @$username..."
-                        disconnectButton.isEnabled = true
+                    .onDisconnected { _, _ ->
+                        runOnUiThread {
+                            connectionStatus.text = "A conexão foi encerrada. Confira se @${username} está ao vivo e tente novamente."
+                            connectionStatus.setTextColor(Color.rgb(250, 204, 120))
+                            characterFace.text = "😕"
+                            characterMood.text = "Opa, perdi a conexão com o chat."
+                            connectButton.isEnabled = true
+                            disconnectButton.isEnabled = false
+                            connecting.set(false)
+                            liveClient = null
+                        }
                     }
-                }
-                .exceptionally { error ->
-                    runOnUiThread {
-                        connectionStatus.text = "Não conectou: " + (error.cause?.message ?: error.message ?: "erro desconhecido").take(120)
-                        connectionStatus.setTextColor(Color.rgb(252, 165, 165))
-                        connectButton.isEnabled = true
-                        disconnectButton.isEnabled = false
-                        connecting.set(false)
+                    .onError { _, event ->
+                        val message = event.exception?.message ?: "A biblioteca não conseguiu conectar."
+                        runOnUiThread {
+                            connectionStatus.text = "Falha ao conectar: " + message.take(120)
+                            connectionStatus.setTextColor(Color.rgb(252, 165, 165))
+                            characterFace.text = "😵"
+                            characterMood.text = "Não consegui entrar no chat. Tente novamente."
+                            connectButton.isEnabled = true
+                            disconnectButton.isEnabled = false
+                            connecting.set(false)
+                        }
                     }
-                    null
+                    .buildAndConnectAsync()
+                    .thenAccept { client ->
+                        liveClient = client
+                        runOnUiThread {
+                            connectionStatus.text = "Pedido de conexão enviado para @${username}; aguardando confirmação..."
+                            disconnectButton.isEnabled = true
+                        }
+                    }
+                    .exceptionally { error ->
+                        runOnUiThread {
+                            connectionStatus.text = "Não conectou: " + (error.cause?.message ?: error.message ?: "erro desconhecido").take(120)
+                            connectionStatus.setTextColor(Color.rgb(252, 165, 165))
+                            connectButton.isEnabled = true
+                            disconnectButton.isEnabled = false
+                            connecting.set(false)
+                        }
+                        null
+                    }
+            } catch (error: Throwable) {
+                runOnUiThread {
+                    connectionStatus.text = "Erro ao iniciar a conexão: " + (error.message ?: error.javaClass.simpleName).take(120)
+                    connectionStatus.setTextColor(Color.rgb(252, 165, 165))
+                    characterFace.text = "😵"
+                    characterMood.text = "A conexão falhou, mas o app continua aberto."
+                    connectButton.isEnabled = true
+                    disconnectButton.isEnabled = false
+                    connecting.set(false)
                 }
-        } catch (e: Exception) {
-            connectionStatus.text = "Erro ao iniciar: " + (e.message ?: "tente novamente").take(120)
-            connectButton.isEnabled = true
-            connecting.set(false)
-        }
+            }
+        }, "boneco-tiktok-connect").start()
     }
 
     private fun reactToComment(nickname: String, comment: String) {
@@ -393,4 +406,94 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         tts = null
         super.onDestroy()
     }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    // Personagem desenhado no próprio app: não depende de emoji para mostrar o boneco.
+    private inner class SpongeBobView : android.view.View(this@MainActivity) {
+        private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            super.onDraw(canvas)
+            val w = width.toFloat()
+            val h = height.toFloat()
+            val cx = w / 2f
+            val unit = minOf(w * 0.52f, h * 0.72f)
+            val left = cx - unit * 0.43f
+            val right = cx + unit * 0.43f
+            val top = h * 0.04f
+            val bottom = top + unit * 0.67f
+
+            fun paint(color: Int, style: android.graphics.Paint.Style = android.graphics.Paint.Style.FILL, stroke: Float = 1f) {
+                p.color = color
+                p.style = style
+                p.strokeWidth = stroke
+            }
+            fun oval(x1: Float, y1: Float, x2: Float, y2: Float, color: Int) {
+                paint(color); canvas.drawOval(x1, y1, x2, y2, p)
+            }
+
+            // Pernas e sapatos
+            paint(Color.rgb(245, 202, 115), android.graphics.Paint.Style.STROKE, unit * 0.035f)
+            canvas.drawLine(cx - unit * 0.2f, bottom + unit * 0.2f, cx - unit * 0.2f, h * 0.88f, p)
+            canvas.drawLine(cx + unit * 0.2f, bottom + unit * 0.2f, cx + unit * 0.2f, h * 0.88f, p)
+            oval(cx - unit * 0.38f, h * 0.84f, cx - unit * 0.08f, h * 0.96f, Color.BLACK)
+            oval(cx + unit * 0.08f, h * 0.84f, cx + unit * 0.38f, h * 0.96f, Color.BLACK)
+
+            // Braços
+            paint(Color.rgb(255, 220, 55), android.graphics.Paint.Style.STROKE, unit * 0.045f)
+            canvas.drawLine(left, top + unit * 0.36f, left - unit * 0.16f, top + unit * 0.55f, p)
+            canvas.drawLine(right, top + unit * 0.36f, right + unit * 0.16f, top + unit * 0.55f, p)
+            oval(left - unit * 0.22f, top + unit * 0.49f, left - unit * 0.1f, top + unit * 0.61f, Color.rgb(255, 220, 55))
+            oval(right + unit * 0.1f, top + unit * 0.49f, right + unit * 0.22f, top + unit * 0.61f, Color.rgb(255, 220, 55))
+
+            // Corpo quadrado amarelo com poros
+            paint(Color.rgb(255, 220, 55))
+            canvas.drawRoundRect(left, top, right, bottom, unit * 0.09f, unit * 0.09f, p)
+            val pores = listOf(
+                floatArrayOf(0.13f,0.18f), floatArrayOf(0.82f,0.16f),
+                floatArrayOf(0.08f,0.47f), floatArrayOf(0.9f,0.44f),
+                floatArrayOf(0.18f,0.61f), floatArrayOf(0.77f,0.6f)
+            )
+            pores.forEach {
+                oval(left + unit * it[0] - unit * .025f, top + unit * it[1] - unit * .025f,
+                    left + unit * it[0] + unit * .025f, top + unit * it[1] + unit * .025f, Color.rgb(220, 166, 31))
+            }
+
+            // Olhos grandes azuis
+            oval(cx - unit * .3f, top + unit * .12f, cx + unit * .02f, top + unit * .43f, Color.WHITE)
+            oval(cx - unit * .02f, top + unit * .12f, cx + unit * .3f, top + unit * .43f, Color.WHITE)
+            oval(cx - unit * .205f, top + unit * .2f, cx - unit * .075f, top + unit * .34f, Color.rgb(48, 139, 220))
+            oval(cx + unit * .075f, top + unit * .2f, cx + unit * .205f, top + unit * .34f, Color.rgb(48, 139, 220))
+            oval(cx - unit * .16f, top + unit * .225f, cx - unit * .095f, top + unit * .305f, Color.BLACK)
+            oval(cx + unit * .095f, top + unit * .225f, cx + unit * .16f, top + unit * .305f, Color.BLACK)
+
+            // Bochechas e sorriso
+            oval(cx - unit * .34f, top + unit * .42f, cx - unit * .17f, top + unit * .53f, Color.rgb(248, 142, 125))
+            oval(cx + unit * .17f, top + unit * .42f, cx + unit * .34f, top + unit * .53f, Color.rgb(248, 142, 125))
+            paint(Color.rgb(125, 54, 20), android.graphics.Paint.Style.STROKE, unit * .018f)
+            canvas.drawArc(cx - unit * .22f, top + unit * .38f, cx + unit * .22f, top + unit * .62f, 10f, 160f, false, p)
+            paint(Color.WHITE)
+            canvas.drawRoundRect(cx - unit * .13f, top + unit * .49f, cx + unit * .13f, top + unit * .55f, unit * .01f, unit * .01f, p)
+
+            // Camisa branca, gravata vermelha e calça marrom
+            paint(Color.WHITE)
+            canvas.drawRect(left + unit * .03f, bottom - unit * .03f, right - unit * .03f, bottom + unit * .13f, p)
+            paint(Color.rgb(220, 45, 55))
+            val tie = android.graphics.Path().apply {
+                moveTo(cx - unit * .055f, bottom)
+                lineTo(cx + unit * .055f, bottom)
+                lineTo(cx + unit * .035f, bottom + unit * .14f)
+                lineTo(cx, bottom + unit * .2f)
+                lineTo(cx - unit * .035f, bottom + unit * .14f)
+                close()
+            }
+            canvas.drawPath(tie, p)
+            paint(Color.rgb(132, 73, 39))
+            canvas.drawRect(left + unit * .03f, bottom + unit * .13f, right - unit * .03f, bottom + unit * .23f, p)
+            paint(Color.WHITE)
+            canvas.drawCircle(cx - unit * .22f, bottom + unit * .025f, unit * .018f, p)
+            canvas.drawCircle(cx + unit * .22f, bottom + unit * .025f, unit * .018f, p)
+        }
+    }
+
 }
