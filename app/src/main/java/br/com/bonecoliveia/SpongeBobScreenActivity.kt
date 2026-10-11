@@ -155,19 +155,13 @@ class SpongeBobScreenActivity : Activity(), TextToSpeech.OnInitListener {
     private fun laughCharacter(afterLine: String = "") {
         if (!ttsReady) return
         val engine = tts ?: return
-        val laughOptions = Bundle().apply {
-            putFloat(TextToSpeech.Engine.KEY_PARAM_PITCH, 1.72f)
-            putFloat(TextToSpeech.Engine.KEY_PARAM_RATE, 1.18f)
-            putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
-        }
-        val normalOptions = Bundle().apply {
-            putFloat(TextToSpeech.Engine.KEY_PARAM_PITCH, 1.35f)
-            putFloat(TextToSpeech.Engine.KEY_PARAM_RATE, 1.08f)
-            putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
-        }
-        engine.speak("HÁ! HÁ! HÁ! HÁ! HÁ!", TextToSpeech.QUEUE_FLUSH, laughOptions, "cartoon-laugh")
+        engine.setPitch(1.72f)
+        engine.setSpeechRate(1.18f)
+        engine.speak("HÁ! HÁ! HÁ! HÁ! HÁ!", TextToSpeech.QUEUE_FLUSH, null, "cartoon-laugh")
+        engine.setPitch(1.35f)
+        engine.setSpeechRate(1.08f)
         if (afterLine.isNotBlank()) {
-            engine.speak(afterLine, TextToSpeech.QUEUE_ADD, normalOptions, "cartoon-after-laugh")
+            engine.speak(afterLine, TextToSpeech.QUEUE_ADD, null, "cartoon-after-laugh")
         }
     }
 
