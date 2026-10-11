@@ -41,7 +41,6 @@ class SpongeBobScreenActivity : Activity(), TextToSpeech.OnInitListener {
                 intArrayOf(Color.rgb(0, 190, 218), Color.rgb(0, 105, 160), Color.rgb(0, 44, 91))
             )
         }
-        tts = TextToSpeech(this, this)
         val title = TextView(this).apply {
             text = "BEM-VINDO À FENDA DO BIQUÍNI!"
             textSize = 20f
@@ -96,6 +95,9 @@ class SpongeBobScreenActivity : Activity(), TextToSpeech.OnInitListener {
         }
         root.addView(back, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
+        // Inicialize a voz somente depois de criar musicStatus e reactionText:
+        // o callback onInit pode acontecer rapidamente em alguns aparelhos.
+        tts = TextToSpeech(this, this)
     }
 
     override fun onResume() {
