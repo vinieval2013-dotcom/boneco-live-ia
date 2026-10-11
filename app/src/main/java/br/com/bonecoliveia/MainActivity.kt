@@ -52,8 +52,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        tts = TextToSpeech(this, this)
-
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(20, 24, 20, 28)
@@ -167,6 +165,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             addView(root)
             setBackgroundColor(bg)
         })
+        // Inicializa a voz só depois de criar os componentes usados pelo callback onInit.
+        tts = TextToSpeech(this, this)
     }
 
     private fun connectToLive() {
