@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.graphics.Color
 import android.graphics.Typeface
@@ -26,6 +28,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private var pendingSpeech: String? = null
     private var liveClient: LiveClient? = null
     private val connecting = AtomicBoolean(false)
+    private var connectionAttempt = 0
+    @Volatile private var connectionConfirmed = false
     private lateinit var answerText: TextView
     private lateinit var voiceStatus: TextView
     private lateinit var connectionStatus: TextView
@@ -174,11 +178,27 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             connectionStatus.text = "Já estou tentando conectar..."
             return
         }
+        connectionAttempt++
+        val thisAttempt = connectionAttempt
+        connectionConfirmed = false
         connectButton.isEnabled = false
         disconnectButton.isEnabled = false
-        connectionStatus.text = "Tentando conectar a @${username} em segundo plano..."
+        connectionStatus.text = "Tentando conectar ao chat público de @${username}..."
         characterFace.text = "🤔"
         characterMood.text = "Um instante! Estou tentando abrir o chat..."
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (thisAttempt == connectionAttempt && !connectionConfirmed && connecting.get()) {
+                try { liveClient?.disconnect() } catch (_: Exception) {}
+                liveClient = null
+                connecting.set(false)
+                connectButton.isEnabled = true
+                disconnectButton.isEnabled = false
+                connectionStatus.text = "Não houve confirmação em 20 s. Confirme que @vini66158 está AO VIVO e que a LIVE é pública. A conexão usa integração não oficial."
+                connectionStatus.setTextColor(Color.rgb(252, 165, 165))
+                characterFace.text = "😵"
+                characterMood.text = "Não consegui confirmar a conexão com o chat."
+            }
+        }, 20_000L)
 
         // A biblioteca de terceiros pode bloquear ou lançar erros durante a inicialização.
         // Mantemos essa etapa fora da thread da interface e mostramos falhas em vez de fechar a tela.
@@ -192,6 +212,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                     }
                     .onConnected { _, _ ->
                         runOnUiThread {
+                            connectionConfirmed = true
                             connectionStatus.text = "CONECTADO ao chat de @${username}. Esperando comentários..."
                             connectionStatus.setTextColor(Color.rgb(134, 239, 172))
                             characterFace.text = "😎"
@@ -219,6 +240,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                             connectButton.isEnabled = true
                             disconnectButton.isEnabled = false
                             connecting.set(false)
+                            connectionConfirmed = false
                             liveClient = null
                         }
                     }
@@ -249,6 +271,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                             connectButton.isEnabled = true
                             disconnectButton.isEnabled = false
                             connecting.set(false)
+                            connectionConfirmed = false
                         }
                         null
                     }
