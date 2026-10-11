@@ -61,7 +61,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         root.addView(label("BONECO LIVE IA", 26f, Color.WHITE, true))
-        root.addView(label("REAÇÕES AO VIVO • VERSÃO 0.7.0", 12f, muted, true).apply {
+        root.addView(label("REAÇÕES AO VIVO • VERSÃO 0.8.0", 12f, muted, true).apply {
             setPadding(0, 4, 0, 18)
         })
 
@@ -266,7 +266,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                     .thenAccept { client ->
                         liveClient = client
                         runOnUiThread {
-                            connectionStatus.text = "Pedido de conexão enviado para @${username}; aguardando confirmação..."
+                            // Evita sobrescrever o estado "CONECTADO" se o callback chegar antes deste.
+                            if (!connectionConfirmed) {
+                                connectionStatus.text = "Pedido de conexão enviado para @${username}; aguardando confirmação..."
+                            }
                             disconnectButton.isEnabled = true
                         }
                     }
