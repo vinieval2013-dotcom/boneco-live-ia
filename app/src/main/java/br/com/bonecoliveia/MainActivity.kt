@@ -303,6 +303,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         characterFace.text = result.first
         characterMood.text = result.second
         answerText.text = "$nickname comentou: $comment\n\nBoneco: ${result.third}"
+        SpongeBobEvents.emit(result.second, result.third)
         val now = System.currentTimeMillis()
         if (now - lastSpokenAt >= 1400L) {
             speak(result.third)
@@ -318,6 +319,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         characterMood.text = "UM PRESENTE?! TÔ TODO EMOCIONADO!"
         val response = "Aí sim, $nickname! Valeu demais pelo presente $gift! Você é brabo!"
         answerText.text = "🎁 $nickname enviou $gift\n\nBoneco: $response"
+        SpongeBobEvents.emit("UM PRESENTE?! TÔ TODO EMOCIONADO!", response)
         speak(response)
     }
 
@@ -393,6 +395,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     )
 
     private fun speak(text: String) {
+        if (SpongeBobEvents.screenOpen) return
         if (!voiceEnabled) return
         if (ttsReady && tts != null) {
             tts?.setSpeechRate(1.05f)
