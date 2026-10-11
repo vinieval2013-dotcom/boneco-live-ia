@@ -97,7 +97,7 @@ class SpongeBobScreenActivity : Activity(), TextToSpeech.OnInitListener {
         SpongeBobEvents.screenOpen = true
         SpongeBobEvents.listener = { mood, line ->
             runOnUiThread {
-                reactionText.text = "$mood\\n$line"
+                reactionText.text = "$mood\n$line"
                 speakCharacter(line)
             }
         }
