@@ -81,6 +81,12 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }, matchWidthWrap())
         root.addView(hero, withBottom(matchWidthWrap(), 16))
 
+        val characterScreenButton = actionButton("🧽  ABRIR TELA GRANDE DO BOB ESPONJA")
+        characterScreenButton.setOnClickListener {
+            startActivity(Intent(this, SpongeBobScreenActivity::class.java))
+        }
+        root.addView(characterScreenButton, withBottom(matchWidthWrap(), 16))
+
         val connectPanel = panelBox()
         connectPanel.addView(label("01  •  CONECTAR AO CHAT REAL", 16f, Color.WHITE, true))
         connectPanel.addView(label("Conta configurada exclusivamente: @vini66158", 13f, muted, false).apply {
