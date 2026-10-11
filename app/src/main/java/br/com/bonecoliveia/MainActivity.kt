@@ -11,7 +11,6 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -27,7 +26,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private var pendingSpeech: String? = null
     private var liveClient: LiveClient? = null
     private val connecting = AtomicBoolean(false)
-    private lateinit var usernameInput: EditText
     private lateinit var answerText: TextView
     private lateinit var voiceStatus: TextView
     private lateinit var connectionStatus: TextView
@@ -78,13 +76,11 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
         val connectPanel = panelBox()
         connectPanel.addView(label("01  •  CONECTAR AO CHAT REAL", 16f, Color.WHITE, true))
-        connectPanel.addView(label("Digite o @ de uma conta que esteja ao vivo.", 13f, muted, false).apply {
+        connectPanel.addView(label("Conta configurada exclusivamente: @vini66158", 13f, muted, false).apply {
             setPadding(0, 5, 0, 10)
         })
-        usernameInput = editField("@seuusuario")
-        connectPanel.addView(usernameInput, withBottom(matchWidthWrap(), 10))
 
-        connectButton = actionButton("🔴  CONECTAR AO CHAT DA LIVE")
+        connectButton = actionButton("🔴  CONECTAR AO @VINI66158")
         connectButton.setOnClickListener { connectToLive() }
         connectPanel.addView(connectButton, withBottom(matchWidthWrap(), 8))
 
@@ -93,7 +89,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         disconnectButton.isEnabled = false
         connectPanel.addView(disconnectButton, matchWidthWrap())
 
-        connectionStatus = label("Desconectado. Digite o @ e toque em conectar.", 13f, Color.rgb(250, 204, 120), false).apply {
+        connectionStatus = label("Desconectado. Toque em conectar para tentar abrir o chat.", 13f, Color.rgb(250, 204, 120), false).apply {
             setPadding(0, 10, 0, 0)
         }
         connectPanel.addView(connectionStatus, matchWidthWrap())
@@ -170,11 +166,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun connectToLive() {
-        val username = usernameInput.text.toString().trim().removePrefix("@").trim()
-        if (username.isBlank() || !username.matches(Regex("[A-Za-z0-9._]{2,24}"))) {
-            usernameInput.error = "Digite um @ válido do TikTok"
-            return
-        }
+        val username = "vini66158"
         if (!connecting.compareAndSet(false, true)) {
             connectionStatus.text = "Já estou tentando conectar..."
             return
@@ -339,16 +331,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             setTextColor(color)
             if (bold) setTypeface(typeface, Typeface.BOLD)
         }
-
-    private fun editField(hintText: String): EditText = EditText(this).apply {
-        hint = hintText
-        textSize = 15f
-        setTextColor(Color.WHITE)
-        setHintTextColor(muted)
-        setPadding(14, 10, 14, 10)
-        setBackgroundColor(Color.rgb(39, 47, 72))
-        singleLine = true
-    }
 
     private fun actionButton(textValue: String): Button = Button(this).apply {
         text = textValue
