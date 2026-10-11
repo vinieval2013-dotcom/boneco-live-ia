@@ -69,6 +69,12 @@ class SpongeBobScreenActivity : Activity(), TextToSpeech.OnInitListener {
             setOnClickListener { speakCharacter("Oi, pessoal! Eu sou uma esponja muito divertida! Manda um comentário aí!") }
         }
         root.addView(testVoice, LinearLayout.LayoutParams(-1, -2))
+        val testLaugh = Button(this).apply {
+            text = "😂  TESTAR RISADA CARTOON"
+            isAllCaps = false
+            setOnClickListener { laughCharacter("HAHA! Essa foi boa! Manda outra!") }
+        }
+        root.addView(testLaugh, LinearLayout.LayoutParams(-1, -2))
         musicStatus = TextView(this).apply {
             text = "Escolha uma música de áudio salva no celular."
             textSize = 13f
@@ -128,10 +134,38 @@ class SpongeBobScreenActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun speakCharacter(line: String) {
-        if (ttsReady) {
-            tts?.setPitch(1.35f)
-            tts?.setSpeechRate(1.08f)
-            tts?.speak(line, TextToSpeech.QUEUE_FLUSH, null, "spongebob-reaction")
+        if (!ttsReady) return
+        val hasLaugh = Regex("(?i)(k{3,}|h+a+h+a+|\\b(rindo|risada)\\b)").containsMatchIn(line)
+        if (hasLaugh) {
+            val spokenLine = line
+                .replace(Regex("(?i)k{3,}!?"), "")
+                .replace(Regex("(?i)h+a+h+a+!?"), "")
+                .trim()
+            laughCharacter(spokenLine)
+            return
+        }
+        tts?.setPitch(1.35f)
+        tts?.setSpeechRate(1.08f)
+        tts?.speak(line, TextToSpeech.QUEUE_FLUSH, null, "cartoon-reaction")
+    }
+
+    // Risada gerada pelo mecanismo de voz do Android, sem gravação oficial do desenho.
+    private fun laughCharacter(afterLine: String = "") {
+        if (!ttsReady) return
+        val engine = tts ?: return
+        val laughOptions = Bundle().apply {
+            putFloat(TextToSpeech.Engine.KEY_PARAM_PITCH, 1.72f)
+            putFloat(TextToSpeech.Engine.KEY_PARAM_RATE, 1.18f)
+            putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
+        }
+        val normalOptions = Bundle().apply {
+            putFloat(TextToSpeech.Engine.KEY_PARAM_PITCH, 1.35f)
+            putFloat(TextToSpeech.Engine.KEY_PARAM_RATE, 1.08f)
+            putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1.0f)
+        }
+        engine.speak("HÁ! HÁ! HÁ! HÁ! HÁ!", TextToSpeech.QUEUE_FLUSH, laughOptions, "cartoon-laugh")
+        if (afterLine.isNotBlank()) {
+            engine.speak(afterLine, TextToSpeech.QUEUE_ADD, normalOptions, "cartoon-after-laugh")
         }
     }
 
