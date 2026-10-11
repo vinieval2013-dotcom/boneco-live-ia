@@ -15,19 +15,25 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import io.github.jwdeveloper.tiktok.client.TikTokLive
+import io.github.jwdeveloper.tiktok.api.live.LiveClient
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private var pendingSpeech: String? = null
+    private var liveClient: LiveClient? = null
+    private val connecting = AtomicBoolean(false)
     private lateinit var usernameInput: EditText
-    private lateinit var commentInput: EditText
     private lateinit var answerText: TextView
     private lateinit var voiceStatus: TextView
     private lateinit var connectionStatus: TextView
     private lateinit var characterFace: TextView
     private lateinit var characterMood: TextView
+    private lateinit var connectButton: Button
+    private lateinit var disconnectButton: Button
 
     private val bg = Color.rgb(10, 14, 28)
     private val panel = Color.rgb(23, 30, 51)
@@ -45,68 +51,56 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         root.addView(label("BONECO LIVE IA", 26f, Color.WHITE, true))
-        root.addView(label("SEU COMPANHEIRO VIRTUAL DE LIVE", 12f, muted, true).apply {
+        root.addView(label("REAÇÕES AO VIVO • VERSÃO 0.5.0", 12f, muted, true).apply {
             setPadding(0, 4, 0, 18)
         })
 
         val hero = panelBox()
-        characterFace = label("🤖", 66f, Color.WHITE, true).apply { gravity = Gravity.CENTER }
+        characterFace = label("🧽😎", 62f, Color.WHITE, true).apply { gravity = Gravity.CENTER }
         hero.addView(characterFace, matchWidthWrap())
-        characterMood = label("Pronto para entrar em cena!", 17f, Color.WHITE, true).apply {
+        characterMood = label("E aí, meu chapa! Bora pra LIVE!", 17f, Color.WHITE, true).apply {
             gravity = Gravity.CENTER
             setPadding(0, 4, 0, 8)
         }
         hero.addView(characterMood, matchWidthWrap())
-        hero.addView(label("O boneco reage ao texto de teste com expressões e respostas faladas.", 13f, muted, false).apply {
+        hero.addView(label("Personagem brincalhão com expressões, respostas e voz.", 13f, muted, false).apply {
             gravity = Gravity.CENTER
         }, matchWidthWrap())
         root.addView(hero, withBottom(matchWidthWrap(), 16))
 
         val connectPanel = panelBox()
-        connectPanel.addView(label("01  •  CONECTAR AO TIKTOK", 16f, Color.WHITE, true))
-        connectPanel.addView(label("Digite o @ da conta que está ao vivo.", 13f, muted, false).apply {
+        connectPanel.addView(label("01  •  CONECTAR AO CHAT REAL", 16f, Color.WHITE, true))
+        connectPanel.addView(label("Digite o @ de uma conta que esteja ao vivo.", 13f, muted, false).apply {
             setPadding(0, 5, 0, 10)
         })
-        usernameInput = editField("@seuusuario", false)
+        usernameInput = editField("@seuusuario")
         connectPanel.addView(usernameInput, withBottom(matchWidthWrap(), 10))
-        val connectButton = actionButton("ABRIR LIVE DO TIKTOK")
-        connectButton.setOnClickListener { openTikTokLive() }
-        connectPanel.addView(connectButton, matchWidthWrap())
-        connectionStatus = label("Ainda não abriu nenhuma LIVE.", 13f, Color.rgb(250, 204, 120), false).apply {
+
+        connectButton = actionButton("🔴  CONECTAR AO CHAT DA LIVE")
+        connectButton.setOnClickListener { connectToLive() }
+        connectPanel.addView(connectButton, withBottom(matchWidthWrap(), 8))
+
+        disconnectButton = actionButton("DESCONECTAR")
+        disconnectButton.setOnClickListener { disconnectFromLive() }
+        disconnectButton.isEnabled = false
+        connectPanel.addView(disconnectButton, matchWidthWrap())
+
+        connectionStatus = label("Desconectado. Digite o @ e toque em conectar.", 13f, Color.rgb(250, 204, 120), false).apply {
             setPadding(0, 10, 0, 0)
         }
         connectPanel.addView(connectionStatus, matchWidthWrap())
         root.addView(connectPanel, withBottom(matchWidthWrap(), 16))
 
         val interactionPanel = panelBox()
-        interactionPanel.addView(label("02  •  TESTAR INTERAÇÃO", 16f, Color.WHITE, true))
-        interactionPanel.addView(label("Escreva como se fosse um comentário da live.", 13f, muted, false).apply {
-            setPadding(0, 5, 0, 10)
-        })
-        commentInput = editField("Ex.: Oi boneco! Você é muito engraçado", true)
-        interactionPanel.addView(commentInput, withBottom(matchWidthWrap(), 10))
-        val answerButton = actionButton("✨  RESPONDER COM EMOÇÃO")
-        answerButton.setOnClickListener {
-            val comment = commentInput.text.toString().trim()
-            if (comment.isBlank()) {
-                commentInput.error = "Digite um comentário para testar"
-                return@setOnClickListener
-            }
-            val result = makeResponse(comment)
-            characterFace.text = result.face
-            characterMood.text = result.mood
-            answerText.text = result.answer
-            speak(result.answer)
-        }
-        interactionPanel.addView(answerButton, matchWidthWrap())
-        answerText = label("A resposta do boneco aparecerá aqui.", 16f, Color.WHITE, false).apply {
-            setPadding(0, 16, 0, 4)
+        interactionPanel.addView(label("02  •  ÚLTIMA REAÇÃO", 16f, Color.WHITE, true))
+        answerText = label("Quando chegar um comentário real, a resposta aparecerá aqui.", 16f, Color.WHITE, false).apply {
+            setPadding(0, 10, 0, 4)
         }
         interactionPanel.addView(answerText, matchWidthWrap())
         root.addView(interactionPanel, withBottom(matchWidthWrap(), 16))
 
         val voicePanel = panelBox()
-        voicePanel.addView(label("03  •  VOZ DO BONECO", 16f, Color.WHITE, true))
+        voicePanel.addView(label("03  •  VOZ DO PERSONAGEM", 16f, Color.WHITE, true))
         voiceStatus = label("Preparando a voz em português...", 13f, Color.rgb(134, 239, 172), false).apply {
             setPadding(0, 8, 0, 10)
         }
@@ -122,8 +116,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         voicePanel.addView(retryButton, matchWidthWrap())
         root.addView(voicePanel, withBottom(matchWidthWrap(), 16))
 
-        root.addView(label("IMPORTANTE", 12f, Color.rgb(250, 204, 120), true))
-        root.addView(label("Esta versão abre a página pública da LIVE pelo @ informado e demonstra as emoções com comentários digitados. Ela ainda não captura comentários ou presentes automaticamente. Para isso é necessária uma integração compatível com o TikTok; inserir só o nome de usuário não libera esses dados por si só.", 12f, muted, false).apply {
+        root.addView(label("AVISO DE CONEXÃO", 12f, Color.rgb(250, 204, 120), true))
+        root.addView(label("A conexão usa uma biblioteca comunitária não oficial. O TikTok pode mudar o sistema e interromper a conexão. O app só reage quando receber eventos; ele não envia mensagens no chat nem controla presentes.", 12f, muted, false).apply {
             setPadding(0, 6, 0, 0)
         }, matchWidthWrap())
 
@@ -134,60 +128,201 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         })
     }
 
-    private data class CharacterResponse(val face: String, val mood: String, val answer: String)
+    private fun connectToLive() {
+        val username = usernameInput.text.toString().trim().removePrefix("@").trim()
+        if (username.isBlank() || !username.matches(Regex("[A-Za-z0-9._]{2,24}"))) {
+            usernameInput.error = "Digite um @ válido do TikTok"
+            return
+        }
+        if (!connecting.compareAndSet(false, true)) {
+            connectionStatus.text = "Já estou tentando conectar..."
+            return
+        }
+        connectButton.isEnabled = false
+        connectionStatus.text = "Conectando a @$username... aguarde."
+        characterFace.text = "🧽🤔"
+        characterMood.text = "Deixa comigo! Tô entrando no chat..."
+        try {
+            TikTokLive.newClient(username)
+                .configure { settings ->
+                    settings.setClientLanguage("pt")
+                    settings.setRetryOnConnectionFailure(true)
+                    settings.setPrintToConsole(false)
+                }
+                .onConnected { _, _ ->
+                    runOnUiThread {
+                        connectionStatus.text = "CONECTADO ao chat de @$username. Esperando comentários..."
+                        connectionStatus.setTextColor(Color.rgb(134, 239, 172))
+                        characterFace.text = "🧽😎"
+                        characterMood.text = "Aêêê! O chat tá aberto, manda ver!"
+                        connectButton.isEnabled = false
+                        disconnectButton.isEnabled = true
+                    }
+                }
+                .onComment { _, event ->
+                    val nickname = event.user.name ?: "alguém"
+                    val comment = event.text ?: ""
+                    if (comment.isNotBlank()) {
+                        runOnUiThread { reactToComment(nickname, comment) }
+                    }
+                }
+                .onGift { _, event ->
+                    val nickname = event.user.name ?: "amigo"
+                    val giftName = event.gift.name ?: "presente"
+                    runOnUiThread { reactToGift(nickname, giftName) }
+                }
+                .onDisconnected { _, event ->
+                    runOnUiThread {
+                        connectionStatus.text = "A conexão foi encerrada. Tente conectar novamente."
+                        connectionStatus.setTextColor(Color.rgb(250, 204, 120))
+                        characterFace.text = "🧽😕"
+                        characterMood.text = "Opa, caí do chat! Tenta de novo."
+                        connectButton.isEnabled = true
+                        disconnectButton.isEnabled = false
+                        connecting.set(false)
+                        liveClient = null
+                    }
+                }
+                .onError { _, event ->
+                    val message = event.exception?.message ?: "Não foi possível conectar."
+                    runOnUiThread {
+                        connectionStatus.text = "Falha na conexão: " + message.take(120)
+                        connectionStatus.setTextColor(Color.rgb(252, 165, 165))
+                        characterFace.text = "🧽😵"
+                        characterMood.text = "Eita! Deu ruim na conexão. Tenta de novo."
+                        connectButton.isEnabled = true
+                        disconnectButton.isEnabled = false
+                        connecting.set(false)
+                    }
+                }
+                .buildAndConnectAsync()
+                .thenAccept { client ->
+                    liveClient = client
+                    runOnUiThread {
+                        connectionStatus.text = "Conexão iniciada. Verificando o chat de @$username..."
+                        disconnectButton.isEnabled = true
+                    }
+                }
+                .exceptionally { error ->
+                    runOnUiThread {
+                        connectionStatus.text = "Não conectou: " + (error.cause?.message ?: error.message ?: "erro desconhecido").take(120)
+                        connectionStatus.setTextColor(Color.rgb(252, 165, 165))
+                        connectButton.isEnabled = true
+                        disconnectButton.isEnabled = false
+                        connecting.set(false)
+                    }
+                    null
+                }
+        } catch (e: Exception) {
+            connectionStatus.text = "Erro ao iniciar: " + (e.message ?: "tente novamente").take(120)
+            connectButton.isEnabled = true
+            connecting.set(false)
+        }
+    }
 
-    private fun makeResponse(comment: String): CharacterResponse {
+    private fun reactToComment(nickname: String, comment: String) {
+        val result = makeResponse(comment)
+        characterFace.text = result.first
+        characterMood.text = result.second
+        answerText.text = "$nickname comentou: $comment\n\nBoneco: ${result.third}"
+        speak(result.third)
+    }
+
+    private fun reactToGift(nickname: String, gift: String) {
+        characterFace.text = "🧽🥹"
+        characterMood.text = "UM PRESENTE?! TÔ TODO EMOCIONADO!"
+        val response = "Aí sim, $nickname! Valeu demais pelo presente $gift! Você é brabo!"
+        answerText.text = "🎁 $nickname enviou $gift\n\nBoneco: $response"
+        speak(response)
+    }
+
+    private fun makeResponse(comment: String): Triple<String, String, String> {
         val text = comment.lowercase(Locale.ROOT)
         return when {
-            listOf("presente", "rosa", "gift", "🎁", "🌹").any { text.contains(it) } ->
-                CharacterResponse("🥹", "EMOCIONADO COM O PRESENTE!", "Eita, que carinho! Muito obrigado pelo presente, você é fera! 💜")
             listOf("kkkk", "haha", "😂", "engraçado", "piada").any { text.contains(it) } ->
-                CharacterResponse("😂", "CAINDO NA RISADA!", "KKKKK vocês não prestam! Manda outra aí que eu tô gostando!")
-            listOf("oi", "olá", "ola", "salve", "cheguei", "boa noite", "bom dia").any { text.contains(it) } ->
-                CharacterResponse("😎", "FELIZ COM A SUA CHEGADA!", "Opa, salve! Seja muito bem-vindo à live! Já deixa o like e fica com a gente!")
+                Triple("🧽😂", "TÔ RINDO ATÉ AS ESPONJAS!", "KKKKKK! Para que eu vou cair da cadeira! Manda outra!")
+            listOf("oi", "olá", "ola", "salve", "cheguei", "bom dia", "boa noite").any { text.contains(it) } ->
+                Triple("🧽😎", "CHEGOU MAIS UM PARÇA!", "Opa, salve, $nicknamePlaceholder! Bem-vindo à bagunça! Deixa o like!")
             listOf("amor", "te amo", "❤️", "💖", "coração").any { text.contains(it) } ->
-                CharacterResponse("🥰", "MANDANDO CARINHO!", "Aí meu coração! Receba um abraço virtual, tamo junto demais! ❤️")
-            listOf("perdeu", "errou", "não", "nao", "triste", "😢").any { text.contains(it) } ->
-                CharacterResponse("😮", "SURPRESO COM O COMENTÁRIO!", "Opa, calma aí! Aqui a gente tenta de novo e não desiste nunca!")
+                Triple("🧽🥰", "AI, MEU CORAÇÃO DE ESPONJA!", "Awnnn! Receba um abraço molhadinho do fundo do mar! ❤️")
+            listOf("presente", "rosa", "🎁", "🌹").any { text.contains(it) } ->
+                Triple("🧽🥹", "VALEU PELO CARINHO!", "Eita! Obrigado pelo carinho, meu povo! Vocês são demais!")
             listOf("jogo", "subway", "recorde", "pontos", "game").any { text.contains(it) } ->
-                CharacterResponse("🤩", "NO CLIMA DO JOGO!", "Bora buscar esse recorde! Comenta aí quantos pontos você acha que eu faço!")
+                Triple("🧽🤩", "BORA BATER RECORDE!", "Foco no recorde! Se eu perder, finjo que foi lag!")
+            listOf("burro", "errou", "perdeu", "😢").any { text.contains(it) } ->
+                Triple("🧽😵", "OPA, FUI DE BASE!", "Foi mal, meu chapa! Até esponja escorrega. Bora de novo!")
             else ->
-                CharacterResponse("🤖", "ATENTO AO CHAT!", "Valeu pelo comentário! Tamo junto na live! Manda mais uma mensagem aí!")
+                Triple("🧽😏", "O BONECO TÁ DE OLHO NO CHAT!", "Boa, meu consagrado! Manda outra que eu tô inspirado!")
         }
     }
 
-    private fun openTikTokLive() {
-        val raw = usernameInput.text.toString().trim().removePrefix("@").trim()
-        if (raw.isBlank()) {
-            usernameInput.error = "Digite o nome de usuário do TikTok"
-            return
-        }
-        if (!raw.matches(Regex("[A-Za-z0-9._]{2,24}"))) {
-            usernameInput.error = "Confira o @ informado"
-            return
-        }
-        val url = "https://www.tiktok.com/@$raw/live"
-        connectionStatus.text = "Abrindo a página da LIVE de @$raw..."
+    private val nicknamePlaceholder = "parça"
+
+    private fun disconnectFromLive() {
         try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        } catch (_: Exception) {
-            connectionStatus.text = "Não foi possível abrir o TikTok. Confira se há um navegador instalado."
-            Toast.makeText(this, "Não consegui abrir a LIVE.", Toast.LENGTH_LONG).show()
+            liveClient?.disconnect()
+            liveClient = null
+            connecting.set(false)
+            connectButton.isEnabled = true
+            disconnectButton.isEnabled = false
+            connectionStatus.text = "Desconectado."
+            connectionStatus.setTextColor(Color.rgb(250, 204, 120))
+            characterFace.text = "🧽😴"
+            characterMood.text = "Vou tirar uma soneca no abacaxi..."
+        } catch (e: Exception) {
+            connectionStatus.text = "Não consegui encerrar normalmente. Feche o app e tente novamente."
         }
     }
+
+    private fun panelBox(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(16, 16, 16, 16)
+        setBackgroundColor(panel)
+    }
+
+    private fun label(textValue: String, size: Float, color: Int, bold: Boolean): TextView =
+        TextView(this).apply {
+            text = textValue
+            textSize = size
+            setTextColor(color)
+            if (bold) setTypeface(typeface, Typeface.BOLD)
+        }
+
+    private fun editField(hintText: String): EditText = EditText(this).apply {
+        hint = hintText
+        textSize = 15f
+        setTextColor(Color.WHITE)
+        setHintTextColor(muted)
+        setPadding(14, 10, 14, 10)
+        setBackgroundColor(Color.rgb(39, 47, 72))
+        singleLine = true
+    }
+
+    private fun actionButton(textValue: String): Button = Button(this).apply {
+        text = textValue
+        isAllCaps = false
+        setTextColor(Color.WHITE)
+        setBackgroundColor(accent)
+        textSize = 14f
+    }
+
+    private fun withBottom(params: LinearLayout.LayoutParams, bottom: Int): LinearLayout.LayoutParams {
+        params.bottomMargin = bottom
+        return params
+    }
+
+    private fun matchWidthWrap() = LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT
+    )
 
     private fun speak(text: String) {
         if (ttsReady && tts != null) {
-            voiceStatus.text = "Enviando resposta para a voz..."
-            val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "boneco-live-answer")
-            if (result == TextToSpeech.ERROR) {
-                voiceStatus.text = "A voz falhou. Tente iniciar novamente."
-            } else {
-                voiceStatus.text = "Resposta enviada para a voz do Android."
-            }
+            val result = tts?.speak(text, TextToSpeech.QUEUE_ADD, null, "boneco-live-answer")
+            if (result == TextToSpeech.ERROR) voiceStatus.text = "Falha ao falar. Confira a voz do Android."
         } else {
             pendingSpeech = text
-            voiceStatus.text = "A voz ainda está iniciando. Vou tentar falar quando ficar pronta."
+            voiceStatus.text = "A voz ainda está iniciando; a resposta ficou na fila."
         }
     }
 
@@ -214,54 +349,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
     }
 
-    private fun panelBox(): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        setPadding(16, 16, 16, 16)
-        setBackgroundColor(panel)
-    }
-
-    private fun label(textValue: String, size: Float, color: Int, bold: Boolean): TextView =
-        TextView(this).apply {
-            text = textValue
-            textSize = size
-            setTextColor(color)
-            if (bold) setTypeface(typeface, Typeface.BOLD)
-        }
-
-    private fun editField(hintText: String, multiline: Boolean): EditText = EditText(this).apply {
-        hint = hintText
-        textSize = 15f
-        setTextColor(Color.WHITE)
-        setHintTextColor(muted)
-        setPadding(14, 10, 14, 10)
-        setBackgroundColor(Color.rgb(39, 47, 72))
-        if (multiline) {
-            minLines = 2
-            gravity = Gravity.TOP
-        } else {
-            singleLine = true
-        }
-    }
-
-    private fun actionButton(textValue: String): Button = Button(this).apply {
-        text = textValue
-        isAllCaps = false
-        setTextColor(Color.WHITE)
-        setBackgroundColor(accent)
-        textSize = 14f
-    }
-
-    private fun withBottom(params: LinearLayout.LayoutParams, bottom: Int): LinearLayout.LayoutParams {
-        params.bottomMargin = bottom
-        return params
-    }
-
-    private fun matchWidthWrap() = LinearLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT
-    )
-
     override fun onDestroy() {
+        try { liveClient?.disconnect() } catch (_: Exception) {}
         tts?.stop()
         tts?.shutdown()
         tts = null
