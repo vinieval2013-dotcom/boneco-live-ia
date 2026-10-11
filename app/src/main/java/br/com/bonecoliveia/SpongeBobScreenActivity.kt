@@ -8,6 +8,8 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.media.MediaPlayer
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
@@ -17,9 +19,12 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 
-class SpongeBobScreenActivity : Activity() {
+class SpongeBobScreenActivity : Activity(), TextToSpeech.OnInitListener {
     private var player: MediaPlayer? = null
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
     private lateinit var musicStatus: TextView
+    private lateinit var reactionText: TextView
     private val pickAudio = 4201
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,6 +41,7 @@ class SpongeBobScreenActivity : Activity() {
                 intArrayOf(Color.rgb(0, 190, 218), Color.rgb(0, 105, 160), Color.rgb(0, 44, 91))
             )
         }
+        tts = TextToSpeech(this, this)
         val title = TextView(this).apply {
             text = "BEM-VINDO À FENDA DO BIQUÍNI!"
             textSize = 20f
@@ -47,6 +53,22 @@ class SpongeBobScreenActivity : Activity() {
         }
         root.addView(title, LinearLayout.LayoutParams(-1, -2))
         root.addView(UnderwaterSpongeView(), LinearLayout.LayoutParams(-1, 0, 1f))
+        reactionText = TextView(this).apply {
+            text = "Oi, pessoal! Eu sou o Bob Esponja! Vamos nos divertir!"
+            textSize = 20f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+            setShadowLayer(4f, 1f, 2f, Color.rgb(0, 35, 70))
+        }
+        root.addView(reactionText, LinearLayout.LayoutParams(-1, -2))
+        val testVoice = Button(this).apply {
+            text = "🔊  TESTAR VOZ DO PERSONAGEM"
+            isAllCaps = false
+            setOnClickListener { speakCharacter("Oi, pessoal! Eu sou uma esponja muito divertida! Manda um comentário aí!") }
+        }
+        root.addView(testVoice, LinearLayout.LayoutParams(-1, -2))
         musicStatus = TextView(this).apply {
             text = "Escolha uma música de áudio salva no celular."
             textSize = 13f
@@ -68,6 +90,49 @@ class SpongeBobScreenActivity : Activity() {
         }
         root.addView(back, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        SpongeBobEvents.screenOpen = true
+        SpongeBobEvents.listener = { mood, line ->
+            runOnUiThread {
+                reactionText.text = "$mood\\n$line"
+                speakCharacter(line)
+            }
+        }
+    }
+
+    override fun onPause() {
+        SpongeBobEvents.listener = null
+        SpongeBobEvents.screenOpen = false
+        tts?.stop()
+        super.onPause()
+    }
+
+    override fun onInit(status: Int) {
+        if (status != TextToSpeech.SUCCESS) {
+            musicStatus.text = "A voz do Android não iniciou. Confira as opções de Texto para voz."
+            return
+        }
+        val engine = tts ?: return
+        val languageResult = engine.setLanguage(Locale("pt", "BR"))
+        ttsReady = languageResult != TextToSpeech.LANG_MISSING_DATA && languageResult != TextToSpeech.LANG_NOT_SUPPORTED
+        if (ttsReady) {
+            engine.setPitch(1.35f)
+            engine.setSpeechRate(1.08f)
+            musicStatus.text = "Voz cartoon em português pronta. A voz exata do desenho não está incluída."
+        } else {
+            musicStatus.text = "Português não disponível no mecanismo de voz deste celular."
+        }
+    }
+
+    private fun speakCharacter(line: String) {
+        if (ttsReady) {
+            tts?.setPitch(1.35f)
+            tts?.setSpeechRate(1.08f)
+            tts?.speak(line, TextToSpeech.QUEUE_FLUSH, null, "spongebob-reaction")
+        }
     }
 
     private fun chooseMusic() {
@@ -112,6 +177,9 @@ class SpongeBobScreenActivity : Activity() {
         try { player?.stop() } catch (_: Exception) {}
         player?.release()
         player = null
+        tts?.stop()
+        tts?.shutdown()
+        tts = null
         super.onDestroy()
     }
 
