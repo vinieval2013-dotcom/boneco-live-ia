@@ -61,7 +61,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         root.addView(label("BONECO LIVE IA", 26f, Color.WHITE, true))
-        root.addView(label("REAÇÕES AO VIVO • VERSÃO 0.6.0", 12f, muted, true).apply {
+        root.addView(label("REAÇÕES AO VIVO • VERSÃO 0.7.0", 12f, muted, true).apply {
             setPadding(0, 4, 0, 18)
         })
 
@@ -398,9 +398,29 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         if (SpongeBobEvents.screenOpen) return
         if (!voiceEnabled) return
         if (ttsReady && tts != null) {
-            tts?.setSpeechRate(1.05f)
-            val options = android.os.Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 0.85f) }
-            val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, options, "boneco-live-answer")
+            val hasLaugh = Regex("(?i)(k{3,}|h+a+h+a+)").containsMatchIn(text)
+            val spokenLine = text
+                .replace(Regex("(?i)k{3,}!?"), "")
+                .replace(Regex("(?i)h+a+h+a+!?"), "")
+                .trim()
+            val options = android.os.Bundle().apply {
+                putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 0.9f)
+                putFloat(TextToSpeech.Engine.KEY_PARAM_PITCH, if (hasLaugh) 1.7f else 1.2f)
+                putFloat(TextToSpeech.Engine.KEY_PARAM_RATE, if (hasLaugh) 1.15f else 1.05f)
+            }
+            val result = if (hasLaugh) {
+                tts?.speak("HÁ! HÁ! HÁ! HÁ! HÁ!", TextToSpeech.QUEUE_FLUSH, options, "boneco-cartoon-laugh")
+                if (spokenLine.isNotBlank()) {
+                    val normal = android.os.Bundle().apply {
+                        putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 0.9f)
+                        putFloat(TextToSpeech.Engine.KEY_PARAM_PITCH, 1.2f)
+                        putFloat(TextToSpeech.Engine.KEY_PARAM_RATE, 1.05f)
+                    }
+                    tts?.speak(spokenLine, TextToSpeech.QUEUE_ADD, normal, "boneco-live-answer")
+                } else TextToSpeech.SUCCESS
+            } else {
+                tts?.speak(text, TextToSpeech.QUEUE_FLUSH, options, "boneco-live-answer")
+            }
             if (result == TextToSpeech.ERROR) voiceStatus.text = "Falha ao falar. Confira a voz do Android."
         } else {
             pendingSpeech = text
