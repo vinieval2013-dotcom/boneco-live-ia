@@ -1,11 +1,14 @@
 package br.com.bonecoliveia
 
 import android.app.Activity
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -67,12 +70,12 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
-        candidates.addView(candidatePanel("L", "LULA", "PT", lulaColor), LinearLayout.LayoutParams(0, dp(164), 1f))
+        candidates.addView(candidatePanel("L", "LULA", "PT", lulaColor, "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Foto_oficial_de_Luiz_In%C3%A1cio_Lula_da_Silva_%28estreita%29.jpg/500px-Foto_oficial_de_Luiz_In%C3%A1cio_Lula_da_Silva_%28estreita%29.jpg"), LinearLayout.LayoutParams(0, dp(190), 1f))
         candidates.addView(LinearLayout(this).apply {
             gravity = Gravity.CENTER
             addView(text("VS", 18f, mutedColor, true))
-        }, LinearLayout.LayoutParams(dp(48), dp(164)))
-        candidates.addView(candidatePanel("B", "BOLSONARO", "PL", bolsonaroColor), LinearLayout.LayoutParams(0, dp(164), 1f))
+        }, LinearLayout.LayoutParams(dp(48), dp(190)))
+        candidates.addView(candidatePanel("B", "BOLSONARO", "PL", bolsonaroColor, "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/39/2019-01-10_Retrato_Oficial_do_Presidente_da_Rep%C3%BAblica_-_Jair_Messias_Bolsonaro.jpg/330px-2019-01-10_Retrato_Oficial_do_Presidente_da_Rep%C3%BAblica_-_Jair_Messias_Bolsonaro.jpg"), LinearLayout.LayoutParams(0, dp(190), 1f))
         contestCard.addView(candidates, matchWrap())
 
         val scoreRow = LinearLayout(this).apply {
@@ -157,22 +160,53 @@ class MainActivity : Activity() {
         refreshScores()
     }
 
-    private fun candidatePanel(initial: String, name: String, party: String, color: Int): LinearLayout {
+    private fun candidatePanel(initial: String, name: String, party: String, color: Int, photoUrl: String): LinearLayout {
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(5), dp(12), dp(5), dp(12))
+            setPadding(dp(5), dp(10), dp(5), dp(10))
             background = rounded(Color.rgb(30, 39, 59), 16)
         }
-        val avatar = TextView(this).apply {
+        val portraitFrame = FrameLayout(this).apply {
+            background = rounded(color, 12)
+            clipToOutline = true
+        }
+        val portrait = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            contentDescription = "Foto de $name"
+            visibility = View.INVISIBLE
+        }
+        val fallback = TextView(this).apply {
             text = initial
             textSize = 28f
             setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            background = rounded(color, 50)
         }
-        panel.addView(avatar, LinearLayout.LayoutParams(dp(58), dp(58)).apply { bottomMargin = dp(10) })
+        portraitFrame.addView(portrait, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+        portraitFrame.addView(fallback, FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+        panel.addView(portraitFrame, LinearLayout.LayoutParams(dp(82), dp(100)).apply { bottomMargin = dp(9) })
+        Thread {
+            try {
+                val connection = java.net.URL(photoUrl).openConnection()
+                connection.connectTimeout = 8000
+                connection.readTimeout = 8000
+                connection.getInputStream().use { stream ->
+                    val bitmap = BitmapFactory.decodeStream(stream)
+                    if (bitmap != null) runOnUiThread {
+                        portrait.setImageBitmap(bitmap)
+                        portrait.visibility = View.VISIBLE
+                        fallback.visibility = View.GONE
+                    }
+                }
+            } catch (_: Exception) {
+                // Mantém a inicial como alternativa se não houver internet.
+            }
+        }.start()
         panel.addView(text(name, 13f, textColor, true).apply {
             gravity = Gravity.CENTER
             maxLines = 1
