@@ -87,6 +87,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
         root.addView(characterScreenButton, withBottom(matchWidthWrap(), 16))
 
+        val ladderGameButton = actionButton("🪜  JOGAR ESCADA INFINITA")
+        ladderGameButton.setOnClickListener { startActivity(Intent(this, EscadaInfinitaActivity::class.java)) }
+        root.addView(ladderGameButton, withBottom(matchWidthWrap(), 16))
+
         val connectPanel = panelBox()
         connectPanel.addView(label("01  •  CONECTAR AO CHAT REAL", 16f, Color.WHITE, true))
         connectPanel.addView(label("Conta configurada exclusivamente: @vini66158", 13f, muted, false).apply {
