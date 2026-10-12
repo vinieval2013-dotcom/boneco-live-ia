@@ -69,11 +69,12 @@ main{max-width:600px;margin:auto;padding:18px 14px 28px}.eyebrow{text-align:cent
  let progress={lula:0,bolsonaro:0}, selected="lula", phase="waiting", timer=null, raceStarted=false, events=[], supporters={lula:{},bolsonaro:{}};
  const $=id=>document.getElementById(id);
  function status(t){$("status").textContent=t}
+ function escapeHtml(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/\'/g,"&#39;")}
  function render(){
   $("lulaProgress").style.width=progress.lula+"%"; $("bolsonaroProgress").style.width=progress.bolsonaro+"%";
   $("lulaPct").textContent=Math.round(progress.lula)+"%"; $("bolsonaroPct").textContent=Math.round(progress.bolsonaro)+"%";
   $("pickLula").classList.toggle("active",selected==="lula"); $("pickBolsonaro").classList.toggle("active",selected==="bolsonaro");
-  $("feed").innerHTML=events.length?events.slice(0,5).map(e=>"<div>"+e+"</div>").join(""):'<span class="dim">As jogadas de teste aparecerão aqui.</span>';
+  $("feed").innerHTML=events.length?events.slice(0,5).map(e=>"<div>"+escapeHtml(e)+"</div>").join(""):'<span class="dim">As jogadas de teste aparecerão aqui.</span>';
  }
  function stopTimer(){if(timer){clearTimeout(timer);timer=null}}
  function startRace(){
@@ -103,8 +104,8 @@ main{max-width:600px;margin:auto;padding:18px 14px 28px}.eyebrow{text-align:cent
  $("start").addEventListener("click",startRace);$("reset").addEventListener("click",resetRace);
  let liveSocket=null;
  const giftSide={
-  "rose":"lula","rosa":"lula","perfume":"lula","garland":"lula","guirlanda":"lula","butterfly":"lula","borboleta":"lula","singing mic":"lula","microfone cantando":"lula","star":"lula","estrela":"lula","hand heart":"lula","coração com as mãos":"lula","paper crane":"lula",
-  "gg":"bolsonaro","ice cream cone":"bolsonaro","sorvete":"bolsonaro","finger heart":"bolsonaro","little crown":"bolsonaro","coroa pequena":"bolsonaro","wishing bottle":"bolsonaro","sunglasses":"bolsonaro","óculos de sol":"bolsonaro","concert":"bolsonaro","show":"bolsonaro","lock and key":"bolsonaro","cadeado e chave":"bolsonaro","doughnut":"bolsonaro","rosquinha":"bolsonaro","cap":"bolsonaro","boné":"bolsonaro","love you":"bolsonaro"
+  "rose":"lula","rosa":"lula","perfume":"lula","garland":"lula","guirlanda":"lula","butterfly":"lula","borboleta":"lula","singing mic":"lula","microfone cantando":"lula","star":"lula","estrela":"lula","hand heart":"lula","coracao com as maos":"lula","paper crane":"lula",
+  "gg":"bolsonaro","ice cream cone":"bolsonaro","sorvete":"bolsonaro","finger heart":"bolsonaro","little crown":"bolsonaro","coroa pequena":"bolsonaro","wishing bottle":"bolsonaro","sunglasses":"bolsonaro","oculos de sol":"bolsonaro","concert":"bolsonaro","show":"bolsonaro","lock and key":"bolsonaro","cadeado e chave":"bolsonaro","doughnut":"bolsonaro","rosquinha":"bolsonaro","cap":"bolsonaro","bone":"bolsonaro","love you":"bolsonaro"
  };
  function normalizeGiftName(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim()}
  function connectLive(){
