@@ -15,9 +15,11 @@ main{max-width:600px;margin:auto;padding:18px 14px 28px}.eyebrow{text-align:cent
 .gifts{margin-top:16px}.sectiontitle{font-size:13px;font-weight:1000;margin-bottom:8px}.sectiondesc{font-size:11px;color:#9aa9c3;margin-bottom:12px;line-height:1.45}.sidepick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.pick{border:1px solid #35445d;background:#111a2c;color:#eaf1ff;border-radius:12px;padding:12px 6px;font-weight:900;font-size:12px}.pick.active.lula{border-color:var(--green);background:#103d31}.pick.active.bolsonaro{border-color:var(--blue);background:#142e55}
 .giftgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.gift{border:1px solid #2c3b55;background:#121c2e;border-radius:13px;padding:10px 4px;text-align:center;color:#f5f7ff;min-width:0}.gift:active{transform:scale(.97)}.emoji{font-size:22px;display:block;margin-bottom:5px}.giftname{font-size:10px;font-weight:900;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.coins{font-size:10px;color:var(--gold);font-weight:900;display:block;margin-top:3px}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.action{border:0;border-radius:12px;padding:13px 8px;font-weight:1000;color:white;background:#33435e}.action.primary{background:linear-gradient(90deg,#b77716,#e6a72d);color:#16100a}.notice{margin-top:14px;color:#7f90ac;font-size:10px;line-height:1.5;text-align:center}.notice b{color:#bac8df}.winner{display:none;text-align:center;margin-top:12px;border:1px solid #b78a2c;background:#302511;border-radius:15px;padding:13px;font-weight:1000;color:#ffe4a1;font-size:17px}.winner.show{display:block}.winner small{display:block;font-size:10px;color:#c7ad73;margin-top:4px;letter-spacing:.08em}
+
+.liveconfig{margin-top:14px;background:#0b1322;border:1px solid #24324a;border-radius:15px;padding:12px}.liveconfig label{display:block;color:#9aa9c3;font-size:10px;font-weight:900;letter-spacing:.08em;margin:9px 0 5px}.liveconfig input{width:100%;padding:12px;border-radius:10px;border:1px solid #35445d;background:#080d19;color:#f7f9ff;font-size:13px;outline:none}.liveconfig .action{width:100%;margin-top:10px}.livehint{font-size:10px;color:#8494af;line-height:1.45;margin-top:8px}
 @media(min-width:480px){main{padding-top:26px}.trackbox{padding:18px}.lane{padding:14px}.portrait{width:58px;height:58px}}
 </style>
-</head>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>\n</head>
 <body>
 <main>
 <div class="eyebrow">JOGO INTERATIVO PARA LIVE</div>
@@ -48,6 +50,16 @@ main{max-width:600px;margin:auto;padding:18px 14px 28px}.eyebrow{text-align:cent
 <button class="gift" data-value="99" data-name="Show"><span class="emoji">🎸</span><span class="giftname">Show</span><span class="coins">99 moedas</span></button>
 </div>
 <div class="actions"><button class="action primary" id="start">▶ INICIAR CORRIDA</button><button class="action" id="reset">↻ NOVA RODADA</button></div>
+</section>
+<section class="liveconfig">
+<div class="sectiontitle">CONECTAR A TIKTOK LIVE</div>
+<div class="sectiondesc">Para presentes reais, informe o endereço público de um servidor compatível e o usuário que está AO VIVO. O servidor não vem hospedado automaticamente com o APK.</div>
+<label for="liveUsername">USUÁRIO DO TIKTOK (SEM @)</label>
+<input id="liveUsername" autocomplete="off" placeholder="ex.: seuusuario">
+<label for="serverUrl">ENDEREÇO DO SERVIDOR</label>
+<input id="serverUrl" autocomplete="url" placeholder="https://seu-servidor.onrender.com">
+<button class="action primary" id="connectLive">CONECTAR À LIVE</button>
+<div class="livehint" id="liveHint">Desconectado. O modo de teste funciona sem servidor.</div>
 </section>
 <div class="notice"><b>Projeto adaptado a partir de TikTok Live Games</b> (licença MIT): mecânica de corrida por presentes, avanço por valor, fases da corrida e reinício. As fotos são carregadas da Wikimedia. Esta versão do APK tem modo de teste; a conexão real com eventos do TikTok LIVE exige um servidor separado.</div>
 </main>
@@ -89,6 +101,46 @@ main{max-width:600px;margin:auto;padding:18px 14px 28px}.eyebrow{text-align:cent
  $("pickBolsonaro").addEventListener("click",()=>{selected="bolsonaro";render()});
  document.querySelectorAll(".gift").forEach(b=>b.addEventListener("click",()=>gift(b.dataset.name,Number(b.dataset.value))));
  $("start").addEventListener("click",startRace);$("reset").addEventListener("click",resetRace);
+ let liveSocket=null;
+ const giftSide={
+  "rose":"lula","rosa":"lula","perfume":"lula","garland":"lula","guirlanda":"lula","butterfly":"lula","borboleta":"lula","singing mic":"lula","microfone cantando":"lula","star":"lula","estrela":"lula","hand heart":"lula","coração com as mãos":"lula","paper crane":"lula",
+  "gg":"bolsonaro","ice cream cone":"bolsonaro","sorvete":"bolsonaro","finger heart":"bolsonaro","little crown":"bolsonaro","coroa pequena":"bolsonaro","wishing bottle":"bolsonaro","sunglasses":"bolsonaro","óculos de sol":"bolsonaro","concert":"bolsonaro","show":"bolsonaro","lock and key":"bolsonaro","cadeado e chave":"bolsonaro","doughnut":"bolsonaro","rosquinha":"bolsonaro","cap":"bolsonaro","boné":"bolsonaro","love you":"bolsonaro"
+ };
+ function normalizeGiftName(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim()}
+ function connectLive(){
+  const username=$("liveUsername").value.trim().replace(/^@/,"");
+  const serverUrl=$("serverUrl").value.trim().replace(/\/$/,"");
+  if(!username||!serverUrl){$("liveHint").textContent="Preencha o usuário do TikTok e o endereço do servidor.";return}
+  if(!/^https?:\/\//i.test(serverUrl)){$("liveHint").textContent="O endereço precisa começar com https:// ou http://.";return}
+  if(typeof window.io!=="function"){$("liveHint").textContent="A biblioteca Socket.IO não carregou. Verifique sua internet e tente novamente.";return}
+  if(liveSocket){liveSocket.disconnect();liveSocket=null}
+  $("liveHint").textContent="Conectando ao servidor…";status("CONECTANDO AO SERVIDOR");
+  liveSocket=window.io(serverUrl,{transports:["websocket","polling"],timeout:12000,reconnection:true});
+  liveSocket.on("connect",()=>{liveSocket.emit("join-room",username);$("liveHint").textContent="Servidor conectado; solicitando conexão com @"+username+"…"});
+  liveSocket.on("room-joined",()=>{$("liveHint").textContent="Conectado ao servidor. Aguardando eventos de @"+username+".";status("AGUARDANDO PRESENTES DA LIVE")});
+  liveSocket.on("tiktok_connected",()=>{$("liveHint").textContent="TikTok LIVE conectado para @"+username+".";status("🔴 TIKTOK LIVE CONECTADO")});
+  liveSocket.on("connection-error",e=>{$("liveHint").textContent=(e&&e.message)||"Não foi possível conectar. Confira se a conta está AO VIVO.";status("ERRO NA CONEXÃO")});
+  liveSocket.on("tiktok_error",e=>{$("liveHint").textContent=(e&&e.message)||"Erro ao receber eventos da LIVE.";status("ERRO NA LIVE")});
+  liveSocket.on("disconnect",()=>{$("liveHint").textContent="Conexão interrompida. O modo de teste continua disponível.";status("DESCONECTADO")});
+  liveSocket.on("tiktok_gift",data=>{
+   const giftName=data.giftName||"Presente";
+   const key=giftSide[normalizeGiftName(giftName)];
+   const nickname=(data.user&&data.user.nickname)||"Espectador";
+   const count=Math.max(1,Number(data.repeatCount)||1);
+   if(!key){events.unshift("🎁 "+nickname+" enviou "+giftName+" — presente sem pista configurada");render();return}
+   if(phase==="finished")resetRace();
+   selected=key;
+   if(phase==="waiting")startRace();
+   const value=Math.max(1,Number(data.giftValue)||1);
+   const distance=Math.min(100,Math.round((5+3*Math.sqrt(value))*count));
+   progress[key]=Math.min(finish,progress[key]+distance);
+   events.unshift((key==="lula"?"🟢 LULA":"🔵 BOLSONARO")+" avançou por presente real de "+nickname+": "+giftName+" (+"+distance+"%)");
+   supporters[key][nickname]=(supporters[key][nickname]||0)+distance;
+   render();
+   if(progress[key]>=finish)finishRace(key==="lula"?"LULA":"BOLSONARO");
+  });
+ }
+ $("connectLive").addEventListener("click",connectLive);
  render();
 })();
 </script>
