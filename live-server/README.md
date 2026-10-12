@@ -1,30 +1,31 @@
 # Servidor de eventos TikTok LIVE — Lula x Bolsonaro
 
-Este serviço opcional recebe eventos de uma LIVE pública usando `tiktok-live-connector` e os retransmite por Socket.IO para o APK.
+Este serviço recebe eventos de uma LIVE pública usando `tiktok-live-connector` e os retransmite por Socket.IO para o APK.
 
-## Implantar gratuitamente pelo celular
+## Implantar pelo celular
 
-1. Abra o repositório no GitHub e confirme que os últimos commits foram enviados.
-2. Entre em https://render.com e crie uma conta ou entre na sua conta.
-3. Escolha **New → Blueprint** e conecte este repositório.
-4. O Render deve detectar o arquivo `render.yaml` na raiz. Confirme a criação do serviço `lula-bolsonaro-live`.
-5. Aguarde o deploy e copie o endereço HTTPS fornecido, por exemplo `https://lula-bolsonaro-live.onrender.com`.
-6. No APK, abra **Conectar a TikTok LIVE**, informe o nome de usuário que está ao vivo (sem @) e cole o endereço HTTPS.
-7. Toque em **Conectar à LIVE**.
+1. Abra https://render.com e entre/crie uma conta.
+2. Escolha **New → Web Service** e conecte o repositório `vinieval2013-dotcom/boneco-live-ia`.
+3. Nas configurações, defina **Root Directory** como `live-server`.
+4. Defina **Build Command** como `npm install` e **Start Command** como `npm start`.
+5. Crie o serviço e aguarde o deploy. Copie o endereço HTTPS fornecido.
+6. No APK, abra **Conectar a TikTok LIVE**, informe o usuário que está AO VIVO (sem @), cole o endereço HTTPS e toque em **Conectar à LIVE**.
 
-O endpoint `/api/health` mostra se o servidor está em execução.
+O endpoint `/api/health` mostra se o servidor está funcionando.
 
-## Eventos
+## Eventos retransmitidos
 
-O servidor envia `tiktok_gift` com `giftName`, `giftValue`, `repeatCount`, `giftId` e `user.nickname`. Também retransmite chat, curtidas e estado da conexão.
+- `tiktok_gift`: nome do presente, valor, quantidade, ID e apelido do espectador.
+- `tiktok_chat`: comentário e apelido.
+- `tiktok_like`: curtidas.
+- `tiktok_connected`, `tiktok_disconnected` e `tiktok_error`: estado da conexão.
 
 ## Importante
 
-- O plano gratuito de hospedagem pode dormir quando não é usado; nesse caso, espere o serviço acordar antes de conectar.
-- A biblioteca usada é comunitária/não oficial e pode parar de funcionar quando o TikTok mudar seus serviços.
-- A conta precisa estar ao vivo e acessível publicamente.
-- Não coloque senhas, cookies ou tokens pessoais no APK ou neste repositório.
-- O APK mantém um modo de teste que não envia presentes reais nem compra moedas.
-- A conexão com eventos do TikTok é separada do APK: a interface é empacotada no app, mas este servidor precisa estar implantado na internet.
+- O plano gratuito pode suspender serviços sem uso; aguarde o serviço iniciar novamente antes de conectar.
+- A biblioteca de conexão é comunitária/não oficial e pode parar de funcionar se o TikTok mudar os serviços.
+- A conta precisa estar AO VIVO e acessível publicamente.
+- Não coloque senhas, cookies ou tokens pessoais no APK ou no repositório.
+- Os presentes do modo de teste não enviam presentes reais nem cobram moedas.
 
-A arquitetura de corrida foi inspirada em [TikTok Live Games](https://github.com/vamnguyen/tiktok-live-games), cujo README e `package.json` declaram licença MIT. Este servidor é uma implementação própria e compacta para este aplicativo.
+A mecânica de corrida foi inspirada em [TikTok Live Games](https://github.com/vamnguyen/tiktok-live-games), cujo README e `package.json` declaram licença MIT. O servidor desta pasta é uma implementação compacta própria para este aplicativo.
